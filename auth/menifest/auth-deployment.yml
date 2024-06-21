@@ -13,19 +13,20 @@ spec:
       type: RollingUpdate
       rollingUpdate:
         maxSurge: 3
-    template:
-      metadata:
-        labels:
-          app: auth
-      spec:
-        containers:
-          - name: auth
-            image: <image>
-            ports:
-              - containerPort: 5000
-            envFrom:
-              - configMapRef:
-                  name: auth-configMap
-              - secretRef:
-                  name: auth-secret
+  template:
+    metadata:
+      labels:
+        app: auth
+    spec:
+      containers:
+        - name: auth
+          image: <image>
+          ports:
+            - containerPort: 5000
+            
+          envFrom:
+            - configMapRef:
+                name: auth-configMap
+            - secretRef:
+                name: auth-secret
         
