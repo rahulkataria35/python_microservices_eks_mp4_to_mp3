@@ -13,7 +13,30 @@ app.config['MYSQL_HOST'] = os.environ.get("MYSQL_HOST")
 app.config['MYSQL_USER'] = os.environ.get("MYSQL_USER")
 app.config['MYSQL_PASSWORD'] = os.environ.get("MYSQL_PASSWORD")
 app.config['MYSQL_DB'] = os.environ.get("MYSQL_DB")
-app.config['MYSQL_PORT'] = int(os.environ.get("MYSQL_PORT"))
+app.config['MYSQL_PORT'] = os.environ.get("MYSQL_PORT")
+
+
+def check_database_connection():
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
+        return True
+    except Exception as e:
+        print(f"Database connection failed: {e}")
+        return False
+
+@app.route('/readiness', methods=['GET'])
+def readiness():
+    if check_database_connection():
+        return jsonify(status="ok"), 200
+    else:
+        return jsonify(status="error", message="Database connection failed"), 503
+
+
+@app.route("/health", methods=["GET", "POST"])
+def health():
+    return jsonify({"status": "ok"})
 
 
 @app.route("/login", methods=["POST"])
