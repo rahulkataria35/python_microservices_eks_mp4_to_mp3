@@ -1,43 +1,58 @@
-import jwt
-import datetime
 import os
+import jwt
 from flask import Flask, request, jsonify
-from flask_mysqldb import MySQL
-
+from mysql.connector import Error
+import utils
+from db import create_db_and_tables, check_database_connection, get_db_connection
+from utils import createJWT
 
 app = Flask(__name__)
-mysql = MySQL(app)
 
-# config
-app.config['MYSQL_HOST'] = os.environ.get("MYSQL_HOST")
-app.config['MYSQL_USER'] = os.environ.get("MYSQL_USER")
-app.config['MYSQL_PASSWORD'] = os.environ.get("MYSQL_PASSWORD")
-app.config['MYSQL_DB'] = os.environ.get("MYSQL_DB")
-app.config['MYSQL_PORT'] = os.environ.get("MYSQL_PORT")
+JWT_SECRET = os.environ.get("JWT_SECRET", "mysecret")
 
-
-def check_database_connection():
-    try:
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT 1")
-        cur.close()
-        return True
-    except Exception as e:
-        print(f"Database connection failed: {e}")
-        return False
-
-@app.route('/readiness', methods=['GET'])
+@app.route('/readiness', methods=["GET", "POST"])
 def readiness():
     if check_database_connection():
-        return jsonify(status="ok"), 200
+        return jsonify(status="yes"), 200
     else:
         return jsonify(status="error", message="Database connection failed"), 503
-
 
 @app.route("/health", methods=["GET", "POST"])
 def health():
     return jsonify({"status": "ok"})
 
+@app.route("/create", methods=["POST"])
+def create_user():
+    auth = request.authorization
+    print("--------------------------------",auth.password)
+    if not auth or not auth.username or not auth.password:
+        return jsonify({"msg": "missing credentials"}), 401
+    
+    hashed_password = utils.hash_password(str(auth.password))
+    print("Hashed password----------------",hashed_password)
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute("SELECT username FROM user WHERE username = %s", (auth.username,))
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            cursor.close()
+            connection.close()
+            return jsonify({"msg": "User already exists"}), 406
+
+        cursor.execute("INSERT INTO user (username, password) VALUES (%s, %s)", (auth.username, hashed_password))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        return jsonify({"msg": "User created successfully"}), 201
+    except Error as e:
+        connection.rollback()
+        cursor.close()
+        connection.close()
+        app.logger.error(f"Failed to create user: {e}")
+        return jsonify({"msg": "Internal Server Error"}), 500
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -45,26 +60,25 @@ def login():
     if not auth or not auth.username or not auth.password:
         return jsonify({"msg": "missing credentials"}), 401
     
-    # check database for username and password
-    cur = mysql.connection.cursor()
-    res = cur.execute(
-        f"SELECT email, password FROM user WHERE email={(auth.username,)}"
-    )
-    if res > 0:
-        user = cur.fetchone()
-        email = user[0]
-        password = user[1]
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    cursor.execute("SELECT username, password FROM user WHERE username = %s", (auth.username,))
+    user = cursor.fetchone()
+    cursor.close()
+    connection.close()
 
-        if auth.username != email or auth.password != password:
+    if user:
+        username, password = user
+        if auth.username != username or not utils.verify_password(auth.password, password):
             return jsonify({"msg": "bad username or password"}), 401
         else:
-            return createJWT(auth.username, os.environ.get("JWT_SECRET"), True)
+            return jsonify({"token": createJWT(auth.username, JWT_SECRET, True)})
     else:
         return jsonify("Invalid Credentials"), 401
 
 @app.route("/validate", methods=["POST"])
 def validate():
-    encoded_jwt = request.headers["Authorization"]
+    encoded_jwt = request.headers.get("Authorization")
     if not encoded_jwt:
         return jsonify({"msg": "missing token"}), 401
     
@@ -72,26 +86,15 @@ def validate():
 
     try:
         decoded = jwt.decode(
-            encoded_jwt, os.environ.get("JWT_SECRET"), algorithms=["HS256"]
+            encoded_jwt, JWT_SECRET, algorithms=["HS256"]
         )
-    except:
-        return jsonify("Not Authorized"), 403
+    except jwt.ExpiredSignatureError:
+        return jsonify("Token has expired"), 403
+    except jwt.InvalidTokenError:
+        return jsonify("Invalid token"), 403
     
     return decoded, 200 
 
-
-def createJWT(username, secret, authz):
-    return jwt.encode(
-        {
-            "username": username,
-            "exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(days=1),
-            "iat": datetime.datetime.now(tz=datetime.timezone.utc),
-            "authz": authz
-        },
-        secret,
-        algorithm="HS256"
-    )
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
-
+    create_db_and_tables()
+    app.run(host="0.0.0.0", port=5000, debug=True)

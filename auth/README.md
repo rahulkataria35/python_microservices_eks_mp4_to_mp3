@@ -3,9 +3,9 @@ Ensure you have the required environment variables set before running your Flask
 
 ```
 export MYSQL_HOST='localhost'
-export MYSQL_USER='auth_user'
-export MYSQL_PASSWORD='kataria3355'
-export MYSQL_DB='auth'
+export MYSQL_USER='auth'
+export MYSQL_PASSWORD='password'
+export MYSQL_DB='user'
 export MYSQL_PORT='3306'  # Optional, defaults to 3306
 
 ```
