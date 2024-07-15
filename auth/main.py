@@ -10,6 +10,10 @@ app = Flask(__name__)
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "mysecret")
 
+@app.route("/", methods=["GET", "POST"])
+def home():
+    return jsonify({"status": "up"})
+
 @app.route('/readiness', methods=["GET", "POST"])
 def readiness():
     if check_database_connection():

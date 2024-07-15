@@ -4,11 +4,11 @@ import mysql.connector
 
 def get_db_connection():
     return mysql.connector.connect(
-        host=os.environ.get("MYSQL_HOST"),
-        user=os.environ.get("MYSQL_USER"),
-        password=os.environ.get("MYSQL_PASSWORD"),
-        database=os.environ.get("MYSQL_DB"),
-        port=int(os.environ.get("MYSQL_PORT"))
+        host=os.environ.get("MYSQL_HOST", "host.docker.internal"),
+        user=os.environ.get("MYSQL_USER", "root"),
+        password=os.environ.get("MYSQL_PASSWORD", "Decimal1@"),
+        database=os.environ.get("MYSQL_DB", "auth"),
+        port=int(os.environ.get("MYSQL_PORT", 3306))
     )
 
 def check_database_connection():
