@@ -1,6 +1,6 @@
 import pika  # For RabbitMQ communication
-import json  # For working with JSON data
-from logger import get_logger  # Custom logger for logging messages and errors
+import json
+from logger import get_logger
 
 # Get logger instance
 logger = get_logger(__name__)  # Initialize logger for the current module
@@ -23,10 +23,11 @@ def upload(f, fs, channel, access):
     try:
         # Upload the video file to the storage system and get its unique file ID (fid)
         fid = fs.put(f)
+        logger.info(f"fid is {fid}")
     except Exception as err:
         # Log and handle errors during file upload
-        logger.error(f"File upload failed: {err}")
-        return "Internal Server error", 500
+        logger.exception(f"File upload failed... {err}")
+        return "Failure" "Internal Server error"
 
     # Prepare the message to be sent to the RabbitMQ queue
     message = {
@@ -47,11 +48,11 @@ def upload(f, fs, channel, access):
         )
     except Exception as err:
         # Log and handle errors during message publishing
-        logger.error(f"Message publishing failed: {err}")
+        logger.exception(f"Message publishing failed: {err}")
         
         # Delete the uploaded file to maintain consistency if publishing fails
         fs.delete(fid)
-        return "Internal Server error", 500
+        return "Failure" "Internal Server error"
 
     # Return success response if upload and message publishing succeed
-    return "Success", 200
+    return "Success", None

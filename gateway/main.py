@@ -16,31 +16,38 @@ app = Flask(__name__)  # Flask application instance
 # Get logger instance
 logger = get_logger(__name__)
 
-
 ###############################  MongoDB ####################################
 # MONGO_URI = "mongodb://host.minikube.internal:27017"  # MongoDB connection URI
 MONGO_URI = "mongodb://localhost:27017"
-UPLOAD_FOLDER = "videos"  # MongoDB database name for uploaded videos
-DOWNLOAD_FOLDER = "mp3s"  # MongoDB database name for converted files
+UPLOAD_FOLDER = "videos"
+DOWNLOAD_FOLDER = "mp3s"
 
 # Initialize MongoDB connections
-mongo_videos = PyMongo(app, uri=f"{MONGO_URI}/{UPLOAD_FOLDER}")  # Connect to 'videos' database
-mongo_mp3s = PyMongo(app, uri=f"{MONGO_URI}/{DOWNLOAD_FOLDER}")  # Connect to 'mp3s' database
+logger.info("Initializing MongoDB connections")
+mongo_videos = PyMongo(app, uri=f"{MONGO_URI}/{UPLOAD_FOLDER}")
+mongo_mp3s = PyMongo(app, uri=f"{MONGO_URI}/{DOWNLOAD_FOLDER}")
 
 # Initialize GridFS instances
-fs_videos = gridfs.GridFS(mongo_videos.db)  # For storing and retrieving video files
-fs_mp3s = gridfs.GridFS(mongo_mp3s.db)  # For storing and retrieving converted MP3 files
+logger.info("Setting up GridFS for videos and mp3s")
+fs_videos = gridfs.GridFS(mongo_videos.db)
+fs_mp3s = gridfs.GridFS(mongo_mp3s.db)
 
-######################## Initialize RabbitMQ connection and channel ##########################
+######################## Initialize RabbitMQ ##############################
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_USER = os.getenv("RABBITMQ_USER", "admin")
 RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "securepassword")
-# Setting up authentication
-credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
-connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST, credentials=credentials))
-channel = connection.channel() # Create a channel
-channel.queue_declare(queue='video', durable=True)
-channel.queue_declare(queue='mp3', durable=True)
+
+try:
+    logger.info("Connecting to RabbitMQ")
+    credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST, credentials=credentials))
+    channel = connection.channel()
+    channel.queue_declare(queue='video', durable=True)
+    channel.queue_declare(queue='mp3', durable=True)
+    logger.info("RabbitMQ connection established successfully")
+except Exception as e:
+    logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
+    raise
 
 # Routes
 @app.route("/login", methods=["POST"])
@@ -48,64 +55,83 @@ def login():
     """
     Login route to authenticate a user.
     """
-    token, err = access.login(request)  # Authenticate user using a custom module
+    logger.info("Processing login request")
+    token, err = access.login(request)
 
     if err:
-        return err, 400  # Return error if login fails
-    return token, 200  # Return authentication token if login succeeds
+        logger.warning(f"Login failed: {err}")
+        return err, 400
+    logger.info("Login successful")
+    return token, 200
 
 @app.route("/upload", methods=["POST"])
 def upload():
     """
     Route to upload a video file.
     """
-    token, err = validate.token(request)  # Validate the provided token
+    logger.info("Processing upload request")
+    token, err = validate.token(request)
 
     if err:
-        return err, 400  # Return error if token is invalid
+        logger.warning(f"Token validation failed: {err}")
+        return err, 400
 
-    access = json.loads(token)  # Parse the token for access rights
-
-    if access.get('admin'):  # Check if the user has admin access
-        if len(request.files) != 1:  # Ensure exactly one file is uploaded
+    access = json.loads(token)
+    logger.info(f"access is {access}")
+    if access.get('username') == "rahul":
+        if len(request.files) != 1:
+            logger.warning("Upload failed: Exactly one file required")
             return "Exactly one file required", 400
 
         try:
-            file = next(iter(request.files.values()))  # Get the uploaded file
-            err = util.upload(file, fs_videos, channel, access)  # Process the file upload
+            file = next(iter(request.files.values()))
+            logger.info(f"Uploading file: {file.filename}")
+            status, err = util.upload(file, fs_videos, channel, access)
             if err:
-                return err, 400  # Return error if upload fails
-            return "Success", 200  # Return success message
+                logger.exception(f"File upload failed: {err}")
+                return err, 400
+            logger.info(f"File uploaded successfully: {file.filename}")
+            # return response in json
+            return {"status": "success"}, 200
+
         except Exception as e:
-            return str(e), 400  # Handle and return exceptions
+            logger.exception("Error during file upload")
+            return str(e), 400
     else:
-        return "You are not allowed to upload", 401  # Unauthorized access
+        logger.warning("Unauthorized upload attempt")
+        return "You are not allowed to upload", 401
 
 @app.route("/download", methods=["POST"])
 def download():
     """
     Route to download a converted MP3 file.
     """
-    token, err = validate.token(request)  # Validate the provided token
+    logger.info("Processing download request")
+    token, err = validate.token(request)
 
     if err:
-        return err, 400  # Return error if token is invalid
+        logger.warning(f"Token validation failed: {err}")
+        return err, 400
 
-    access = json.loads(token)  # Parse the token for access rights
-
-    if access.get('admin'):  # Check if the user has admin access
-        fid = request.args.get("fid")  # Retrieve the file ID from the request
-
-        if not fid:  # Ensure file ID is provided
+    access = json.loads(token)
+    if access.get('admin'):
+        fid = request.args.get("fid")
+        if not fid:
+            logger.warning("Download failed: No fid provided")
             return "No fid provided", 400
 
         try:
-            file = fs_mp3s.get(ObjectId(fid))  # Retrieve the file using its ID
-            return send_file(file, download_name=f"{fid}_converted.mp3")  # Send the file for download
+            logger.info(f"Fetching file with id: {fid}")
+            file = fs_mp3s.get(ObjectId(fid))
+            logger.info(f"File fetched successfully: {fid}")
+            return send_file(file, download_name=f"{fid}_converted.mp3")
         except Exception as e:
-            return str(e), 400  # Handle and return exceptions
+            logger.exception(f"Error during file download for id {fid}")
+            return str(e), 400
     else:
-        return "You are not allowed to download", 401  # Unauthorized access
+        logger.warning("Unauthorized download attempt")
+        return "You are not allowed to download", 401
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8086)  # Run the Flask app on port 8080
+    logger.info("Starting the Flask application")
+    app.run(host="0.0.0.0", port=8086)
