@@ -16,7 +16,7 @@ def login(request):
     # Send a POST request to the authentication service for user login
     try:
         response = requests.post(
-            f"http://{os.environ.get('AUTH_SVC_ADDRESS')}/login",
+            f"http://{os.environ.get('AUTH_SVC_ADDRESS','127.0.0.1:5000')}/login",
             auth=basicAuth
         )
     except requests.exceptions.RequestException as e:

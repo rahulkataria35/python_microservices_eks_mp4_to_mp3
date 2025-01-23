@@ -1,6 +1,6 @@
 import pika  # For RabbitMQ communication
 import json  # For working with JSON data
-from ..logger import get_logger  # Custom logger for logging messages and errors
+from logger import get_logger  # Custom logger for logging messages and errors
 
 # Get logger instance
 logger = get_logger(__name__)  # Initialize logger for the current module

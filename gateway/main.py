@@ -1,27 +1,27 @@
-import json  # For working with JSON data (parsing and serializing)
+import json  
+import os
 import gridfs  # For handling large files in MongoDB
 import pika  # For RabbitMQ communication
-from flask import Flask, request, send_file  # For building the web app and handling HTTP requests
+from flask import Flask, request, send_file
 from flask_pymongo import PyMongo  # For integrating MongoDB with Flask
 from bson.objectid import ObjectId  # For working with MongoDB ObjectIDs
-
-# Custom modules for authentication, access control, and utility functions
-from auth_validate import validate  # Token validation logic
-from auth_svc import access  # Login and access control logic
-from storage import util  # Utility functions for file upload
+from auth_validate import validate
+from auth_svc import access
+from storage import util
 from logger import get_logger
 
-# Constants
-MONGO_URI = "mongodb://host.minikube.internal:27017"  # MongoDB connection URI
-RABBITMQ_HOST = "rabbitmq"  # RabbitMQ hostname
-UPLOAD_FOLDER = "videos"  # MongoDB database name for uploaded videos
-DOWNLOAD_FOLDER = "mp3s"  # MongoDB database name for converted files
 
 # Initialize Flask app
 app = Flask(__name__)  # Flask application instance
-
 # Get logger instance
 logger = get_logger(__name__)
+
+
+###############################  MongoDB ####################################
+# MONGO_URI = "mongodb://host.minikube.internal:27017"  # MongoDB connection URI
+MONGO_URI = "mongodb://localhost:27017"
+UPLOAD_FOLDER = "videos"  # MongoDB database name for uploaded videos
+DOWNLOAD_FOLDER = "mp3s"  # MongoDB database name for converted files
 
 # Initialize MongoDB connections
 mongo_videos = PyMongo(app, uri=f"{MONGO_URI}/{UPLOAD_FOLDER}")  # Connect to 'videos' database
@@ -31,9 +31,16 @@ mongo_mp3s = PyMongo(app, uri=f"{MONGO_URI}/{DOWNLOAD_FOLDER}")  # Connect to 'm
 fs_videos = gridfs.GridFS(mongo_videos.db)  # For storing and retrieving video files
 fs_mp3s = gridfs.GridFS(mongo_mp3s.db)  # For storing and retrieving converted MP3 files
 
-# Initialize RabbitMQ connection and channel
-connection = pika.BlockingConnection(pika.ConnectionParameters(RABBITMQ_HOST))  # Connect to RabbitMQ
-channel = connection.channel()  # Create a RabbitMQ channel for message communication
+######################## Initialize RabbitMQ connection and channel ##########################
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+RABBITMQ_USER = os.getenv("RABBITMQ_USER", "admin")
+RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "securepassword")
+# Setting up authentication
+credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
+connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST, credentials=credentials))
+channel = connection.channel() # Create a channel
+channel.queue_declare(queue='video', durable=True)
+channel.queue_declare(queue='mp3', durable=True)
 
 # Routes
 @app.route("/login", methods=["POST"])
@@ -101,4 +108,4 @@ def download():
         return "You are not allowed to download", 401  # Unauthorized access
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)  # Run the Flask app on port 8080
+    app.run(host="0.0.0.0", port=8086)  # Run the Flask app on port 8080
