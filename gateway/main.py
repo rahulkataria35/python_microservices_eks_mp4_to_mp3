@@ -78,7 +78,7 @@ def upload():
 
     access = json.loads(token)
     logger.info(f"access is {access}")
-    if access.get('username') == "rahul":
+    if access.get('username'):
         if len(request.files) != 1:
             logger.warning("Upload failed: Exactly one file required")
             return "Exactly one file required", 400
