@@ -1,104 +1,126 @@
 import os
 import jwt
 from flask import Flask, request, jsonify
-from mysql.connector import Error
 import utils
 from db import create_db_and_tables, check_database_connection, get_db_connection
 from utils import createJWT
+from logger import get_logger
 
+# Initialize Flask app
 app = Flask(__name__)
+
+# Get logger instance
+logger = get_logger(__name__)
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "mysecret")
 
-@app.route("/", methods=["GET", "POST"])
-def home():
-    return jsonify({"status": "up"})
-
-@app.route('/readiness', methods=["GET", "POST"])
+# Check readiness
+@app.route('/readiness', methods=["GET"])
 def readiness():
     if check_database_connection():
+        logger.info("Database Connection is OK...")
         return jsonify(status="yes"), 200
     else:
+        logger.error("Database connection failed.")
         return jsonify(status="error", message="Database connection failed"), 503
 
-@app.route("/health", methods=["GET", "POST"])
+
+# Check health
+@app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
 
+
+# Create user
 @app.route("/create", methods=["POST"])
 def create_user():
     auth = request.authorization
-    print("--------------------------------",auth.password)
+    logger.info(f"Received auth: {auth}")
     if not auth or not auth.username or not auth.password:
         return jsonify({"msg": "missing credentials"}), 401
-    
-    hashed_password = utils.hash_password(str(auth.password))
-    print("Hashed password----------------",hashed_password)
+
+    hashed_password = utils.hash_password(auth.password)
+    logger.info(f"Hashed password: {hashed_password}")
     connection = get_db_connection()
     cursor = connection.cursor()
 
     try:
-        cursor.execute("SELECT username FROM user WHERE username = %s", (auth.username,))
+        cursor.execute("SELECT username FROM users WHERE username = %s", (auth.username,))
         existing_user = cursor.fetchone()
 
         if existing_user:
-            cursor.close()
-            connection.close()
+            logger.warning(f"User with username {auth.username} already exists")
             return jsonify({"msg": "User already exists"}), 406
 
-        cursor.execute("INSERT INTO user (username, password) VALUES (%s, %s)", (auth.username, hashed_password))
+        logger.info("Creating user...")
+        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (auth.username, hashed_password))
         connection.commit()
-        cursor.close()
-        connection.close()
+        logger.info(f"User {auth.username} created successfully")
         return jsonify({"msg": "User created successfully"}), 201
-    except Error as e:
+    except Exception as e:
         connection.rollback()
+        logger.exception(f"Error creating user: {e}")
+        return jsonify({"msg": "Internal Server Error"}), 500
+    finally:
         cursor.close()
         connection.close()
-        app.logger.error(f"Failed to create user: {e}")
-        return jsonify({"msg": "Internal Server Error"}), 500
 
+
+# Login
 @app.route("/login", methods=["POST"])
 def login():
+    logger.info("Request received at /login")
     auth = request.authorization
     if not auth or not auth.username or not auth.password:
+        logger.error("Missing credentials")
         return jsonify({"msg": "missing credentials"}), 401
-    
+
     connection = get_db_connection()
     cursor = connection.cursor()
-    cursor.execute("SELECT username, password FROM user WHERE username = %s", (auth.username,))
+    cursor.execute("SELECT username, password FROM users WHERE username = %s", (auth.username,))
     user = cursor.fetchone()
+
     cursor.close()
     connection.close()
 
     if user:
+        logger.info(f"User {auth.username} found")
         username, password = user
         if auth.username != username or not utils.verify_password(auth.password, password):
+            logger.error(f"Invalid credentials for user {auth.username}")
             return jsonify({"msg": "bad username or password"}), 401
-        else:
-            return jsonify({"token": createJWT(auth.username, JWT_SECRET, True)})
+        logger.info(f"User {auth.username} logged in successfully")
+        return jsonify({"token": createJWT(auth.username, JWT_SECRET, True)})
     else:
-        return jsonify("Invalid Credentials"), 401
+        logger.error(f"User {auth.username} not found")
+        return jsonify({"msg": "Invalid Credentials"}), 401
 
+
+# Validate JWT
 @app.route("/validate", methods=["POST"])
 def validate():
+    logger.info("Request received at /validate")
     encoded_jwt = request.headers.get("Authorization")
     if not encoded_jwt:
+        logger.error("Missing token")
         return jsonify({"msg": "missing token"}), 401
-    
+
     encoded_jwt = encoded_jwt.split(" ")[1]
 
     try:
-        decoded = jwt.decode(
-            encoded_jwt, JWT_SECRET, algorithms=["HS256"]
-        )
+        logger.info(f"Validating token: {encoded_jwt}")
+        decoded = jwt.decode(encoded_jwt, JWT_SECRET, algorithms=["HS256"])
+        logger.info("Token is valid")
     except jwt.ExpiredSignatureError:
-        return jsonify("Token has expired"), 403
+        logger.error("Token expired")
+        return jsonify({"msg": "Token has expired"}), 403
     except jwt.InvalidTokenError:
-        return jsonify("Invalid token"), 403
-    
-    return decoded, 200 
+        logger.error("Invalid token")
+        return jsonify({"msg": "Invalid token"}), 403
+
+    return jsonify(decoded), 200
+
 
 if __name__ == "__main__":
     create_db_and_tables()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)
