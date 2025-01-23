@@ -34,33 +34,45 @@ def health():
 # Create user
 @app.route("/create", methods=["POST"])
 def create_user():
-    auth = request.authorization
+    auth = request.get_json()
     logger.info(f"Received auth: {auth}")
-    if not auth or not auth.username or not auth.password:
-        return jsonify({"msg": "missing credentials"}), 401
+    if not auth or not auth["username"] or not auth["password"] or not auth["email"]:
+        return jsonify({"msg": "missing credentials",
+                        "required_fields": {"username": "", "password": "", "email": ""}
+                        }), 401
 
-    hashed_password = utils.hash_password(auth.password)
+    hashed_password = utils.hash_password(auth["password"])
     logger.info(f"Hashed password: {hashed_password}")
     connection = get_db_connection()
     cursor = connection.cursor()
 
     try:
-        cursor.execute("SELECT username FROM users WHERE username = %s", (auth.username,))
+        # check for username is exists or not
+        cursor.execute("SELECT username FROM users WHERE username = %s", (auth["username"],))
         existing_user = cursor.fetchone()
 
         if existing_user:
-            logger.warning(f"User with username {auth.username} already exists")
+            logger.warning(f"User with username {auth['username']} already exists")
             return jsonify({"msg": "User already exists"}), 406
+        
+        # now check email is exist or not
+        cursor.execute("SELECT email FROM users WHERE email = %s", (auth["email"],))
+        existing_email = cursor.fetchone()
+        if existing_email:
+            logger.warning(f"Email {auth['email']} already exists")
+            return jsonify({"msg": "Email already exists"}), 406
 
         logger.info("Creating user...")
-        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (auth.username, hashed_password))
+        cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)", (auth["username"], hashed_password, auth["email"]))
         connection.commit()
-        logger.info(f"User {auth.username} created successfully")
+        logger.info(f"User {auth['username']} created successfully")
         return jsonify({"msg": "User created successfully"}), 201
+    
     except Exception as e:
         connection.rollback()
         logger.exception(f"Error creating user: {e}")
         return jsonify({"msg": "Internal Server Error"}), 500
+    
     finally:
         cursor.close()
         connection.close()
@@ -69,38 +81,39 @@ def create_user():
 # Login
 @app.route("/login", methods=["POST"])
 def login():
-    logger.info("Request received at /login")
-    auth = request.authorization
-    if not auth or not auth.username or not auth.password:
+    auth = request.get_json()
+    if not auth or not auth["username"] or not auth["password"]:
         logger.error("Missing credentials")
         return jsonify({"msg": "missing credentials"}), 401
 
     connection = get_db_connection()
     cursor = connection.cursor()
-    cursor.execute("SELECT username, password FROM users WHERE username = %s", (auth.username,))
+    cursor.execute("SELECT username, password, email FROM users WHERE username = %s", (auth["username"],))
     user = cursor.fetchone()
 
     cursor.close()
     connection.close()
 
     if user:
-        logger.info(f"User {auth.username} found")
-        username, password = user
-        if auth.username != username or not utils.verify_password(auth.password, password):
-            logger.error(f"Invalid credentials for user {auth.username}")
+        logger.info(f"User {auth['username']} found")
+        username, password, email = user
+        
+        if auth["username"] != username or not utils.verify_password(auth["password"], password):
+            logger.error(f"Invalid credentials for user {auth['username']}")
             return jsonify({"msg": "bad username or password"}), 401
-        logger.info(f"User {auth.username} logged in successfully")
-        return jsonify({"token": createJWT(auth.username, JWT_SECRET, True)})
+        logger.info(f"User {auth['username']} logged in successfully")
+        data = {"username": username, "email": email}
+        return jsonify({"token": createJWT(data, JWT_SECRET, True)})
     else:
-        logger.error(f"User {auth.username} not found")
+        logger.error(f"User {auth['username']} not found")
         return jsonify({"msg": "Invalid Credentials"}), 401
 
 
 # Validate JWT
 @app.route("/validate", methods=["POST"])
 def validate():
-    logger.info("Request received at /validate")
     encoded_jwt = request.headers.get("Authorization")
+    
     if not encoded_jwt:
         logger.error("Missing token")
         return jsonify({"msg": "missing token"}), 401

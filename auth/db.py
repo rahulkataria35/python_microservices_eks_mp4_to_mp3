@@ -57,6 +57,7 @@ def create_db_and_tables():
             id SERIAL PRIMARY KEY,
             username VARCHAR(120) UNIQUE NOT NULL,
             password VARCHAR(120) NOT NULL,
+            email VARCHAR(120) UNIQUE NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """

@@ -17,10 +17,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     return pwd_context.verify(plain_password, hashed_password)
 
-def createJWT(username, secret, authz):
+def createJWT(user, secret, authz):
     return jwt.encode(
         {
-            "username": username,
+            "user": user,
             "exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(days=1),
             "iat": datetime.datetime.now(tz=datetime.timezone.utc),
             "authz": authz
