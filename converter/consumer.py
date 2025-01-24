@@ -1,34 +1,66 @@
-import pika, sys, os, time
+import pika
+import sys
+import os
+import time
 from pymongo import MongoClient
 import gridfs
 from convert import to_mp3
+from dotenv import load_dotenv
 
+# Load environment variables from .env file
+load_dotenv()
+
+def initialize_mongo_client(uri, db_name):
+    """
+    Initializes a MongoDB client and GridFS for a given database.
+    """
+    client = MongoClient(uri)
+    db = client[db_name]
+    fs = gridfs.GridFS(db)
+    return db, fs
+
+def initialize_rabbitmq_connection(host, user, password):
+    """
+    Establishes a connection to RabbitMQ and returns the channel.
+    """
+    credentials = pika.PlainCredentials(user, password)
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host=host, credentials=credentials))
+    channel = connection.channel()
+    return channel
 
 def main():
-    client = MongoClient("host.minikube.internal", 27017)
-    db_videos = client.videos
-    db_mp3s = client.mp3s
-    # gridfs
-    fs_videos = gridfs.GridFS(db_videos)
-    fs_mp3s = gridfs.GridFS(db_mp3s)
+    # MongoDB settings
+    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+    upload_folder = os.getenv("UPLOAD_FOLDER", "videos-db")
+    download_folder = os.getenv("DOWNLOAD_FOLDER", "mp3-db")
 
-    # rabbitmq connection
-    connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitmq"))
-    channel = connection.channel()
+    # Initialize MongoDB and GridFS
+    db_videos, fs_videos = initialize_mongo_client(mongo_uri, upload_folder)
+    db_mp3s, fs_mp3s = initialize_mongo_client(mongo_uri, download_folder)
+
+    # RabbitMQ settings
+    rabbitmq_host = os.getenv("RABBITMQ_HOST", "localhost")
+    rabbitmq_user = os.getenv("RABBITMQ_USER", "admin")
+    rabbitmq_password = os.getenv("RABBITMQ_PASSWORD", "securepassword")
+
+    # Initialize RabbitMQ connection
+    channel = initialize_rabbitmq_connection(rabbitmq_host, rabbitmq_user, rabbitmq_password)
 
     def callback(ch, method, properties, body):
-        err = to_mp3.start(body, fs_videos, fs_mp3s, ch)
-        if err:
+        """
+        Callback function for processing RabbitMQ messages.
+        """
+        error = to_mp3.start(body, fs_videos, fs_mp3s, ch)
+        if error:
             ch.basic_nack(delivery_tag=method.delivery_tag)
         else:
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    channel.basic_consume(
-        queue=os.environ.get("VIDEO_QUEUE"), on_message_callback=callback
-    )
+    # Queue names
+    video_queue = os.getenv("VIDEO_QUEUE", "video")
+    channel.basic_consume(queue=video_queue, on_message_callback=callback)
 
-    print("Waiting for messages. To exit press CTRL+C")
-
+    print(f"Waiting for messages on queue '{video_queue}'. To exit press CTRL+C")
     channel.start_consuming()
 
 if __name__ == "__main__":
