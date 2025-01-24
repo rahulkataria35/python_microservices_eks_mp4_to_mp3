@@ -115,6 +115,7 @@ def download():
         return err, 400
 
     data = json.loads(token)
+    logger.info(f"user is {data['user']}")
     if data["user"].get("username"):
         fid = request.args.get("fid")
         if not fid:
