@@ -2,7 +2,7 @@ import json
 import os
 import gridfs  # For handling large files in MongoDB
 import pika  # For RabbitMQ communication
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, jsonify
 from flask_pymongo import PyMongo  # For integrating MongoDB with Flask
 from bson.objectid import ObjectId  # For working with MongoDB ObjectIDs
 from auth_validate import validate
@@ -19,8 +19,8 @@ logger = get_logger(__name__)
 ###############################  MongoDB ####################################
 # MONGO_URI = "mongodb://host.minikube.internal:27017"  # MongoDB connection URI
 MONGO_URI = "mongodb://localhost:27017"
-UPLOAD_FOLDER = "videos"
-DOWNLOAD_FOLDER = "mp3s"
+UPLOAD_FOLDER = "videos-db"
+DOWNLOAD_FOLDER = "mp3-db"
 
 # Initialize MongoDB connections
 logger.info("Initializing MongoDB connections")
@@ -49,7 +49,20 @@ except Exception as e:
     logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
     raise
 
-# Routes
+############################# Routes ####################################
+
+# Check readiness
+@app.route('/readiness', methods=["GET"])
+def readiness():
+    pass
+
+# Check health
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok"})
+
+
+
 @app.route("/login", methods=["POST"])
 def login():
     """
@@ -76,9 +89,10 @@ def upload():
         logger.warning(f"Token validation failed: {err}")
         return err, 400
 
-    access = json.loads(token)
-    logger.info(f"access is {access}")
-    if access.get('username'):
+    data = json.loads(token)
+    logger.info(f"token data is {data}")
+    
+    if data["user"].get('username') and data["user"].get("email"):
         if len(request.files) != 1:
             logger.warning("Upload failed: Exactly one file required")
             return "Exactly one file required", 400
@@ -86,20 +100,20 @@ def upload():
         try:
             file = next(iter(request.files.values()))
             logger.info(f"Uploading file: {file.filename}")
-            status, err = util.upload(file, fs_videos, channel, access)
-            if err:
-                logger.exception(f"File upload failed: {err}")
-                return err, 400
+            response = util.upload_file_to_storage_and_queue(file, fs_videos, channel, data["user"])
+            if "error" in response:
+                logger.exception(f"File upload failed: {response}")
+                return jsonify(response)
             logger.info(f"File uploaded successfully: {file.filename}")
             # return response in json
-            return {"status": "success"}, 200
+            return jsonify(response)
 
         except Exception as e:
             logger.exception("Error during file upload")
-            return str(e), 400
+            return jsonify({"status": False, "error": str(e)}), 500
     else:
         logger.warning("Unauthorized upload attempt")
-        return "You are not allowed to upload", 401
+        return jsonify({"status": False, "error": "Unauthorized"}), 401
 
 @app.route("/download", methods=["POST"])
 def download():
@@ -113,8 +127,9 @@ def download():
         logger.warning(f"Token validation failed: {err}")
         return err, 400
 
-    access = json.loads(token)
-    if access.get('admin'):
+    data = json.loads(token)
+    logger.info(f"access is : {access}")
+    if access.get('username'):
         fid = request.args.get("fid")
         if not fid:
             logger.warning("Download failed: No fid provided")
@@ -134,4 +149,4 @@ def download():
 
 if __name__ == "__main__":
     logger.info("Starting the Flask application")
-    app.run(host="0.0.0.0", port=8086)
+    app.run(host="0.0.0.0", port=8086, debug=True)

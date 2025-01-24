@@ -12,8 +12,8 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq  # Persist RabbitMQ data
       - rabbitmq_logs:/var/log/rabbitmq  # Persist RabbitMQ logs
     ports:
-      - "5672:5672"  # AMQP port for clients
-      - "15672:15672" # Management UI
+      - "5672:5672"  # AMQP port for clients  
+      - "15672:15672" # Management UI   "http://localhost:15672/""
     networks:
       - rabbitmq_network
     restart: always  # Automatically restart the container on failure or reboot
