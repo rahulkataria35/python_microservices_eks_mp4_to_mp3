@@ -12,12 +12,12 @@ load_dotenv()
 logger = get_logger(__name__)
 
 
-def initialize_rabbitmq_connection(host, user, password):
+def initialize_rabbitmq_connection(host, user, password, port):
     """
     Establishes a connection to RabbitMQ and returns the channel.
     """
     credentials = pika.PlainCredentials(user, password)
-    connection = pika.BlockingConnection(pika.ConnectionParameters(host=host, credentials=credentials))
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host=host, port=port, credentials=credentials))
     channel = connection.channel()
     return channel
 
@@ -28,11 +28,12 @@ def main():
     rabbitmq_host = os.getenv("RABBITMQ_HOST", "localhost")
     rabbitmq_user = os.getenv("RABBITMQ_USER", "admin")
     rabbitmq_password = os.getenv("RABBITMQ_PASSWORD", "securepassword")
+    rabbitmq_port = os.getenv("RABBITMQ_PORT", 5672)
     mp3_queue = os.getenv("MP3_QUEUE", "mp3")
 
     # Initialize RabbitMQ connection
     logger.info("Connecting to RabbitMQ...")
-    channel = initialize_rabbitmq_connection(rabbitmq_host, rabbitmq_user, rabbitmq_password)
+    channel = initialize_rabbitmq_connection(rabbitmq_host, rabbitmq_user, rabbitmq_password, rabbitmq_port)
 
 
     try:

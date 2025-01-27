@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-mongodb
+  labels:
+    app: mongodb
+    release: {{ .Release.Name }}
+spec:
+  serviceName: {{ .Release.Name }}-mongodb
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: mongodb
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: mongodb
+        release: {{ .Release.Name }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      containers:
+        - name: mongodb
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mongodb-secret
+                  key: rootUsername
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mongodb-secret
+                  key: rootPassword
+            - name: MONGO_INITDB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mongodb-secret
+                  key: database
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        storageClassName: {{ .Values.persistence.storageClass }}

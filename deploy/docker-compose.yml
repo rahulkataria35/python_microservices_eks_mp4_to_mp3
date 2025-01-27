@@ -1,0 +1,172 @@
+version: '3.8'
+
+services:
+  authentication:
+    build:
+      context: .
+      dockerfile: ./auth/Dockerfile
+    container_name: auth
+    environment:
+      - POSTGRES_HOST=postgres-db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=auth_db
+      - POSTGRES_PORT=5432
+    ports:
+      - "5000:5000"
+    logging:
+      driver: json-file
+      options:
+        max-file: "2"
+        max-size: "200m"
+    depends_on:
+      - postgres-db
+    volumes:
+      - .:/app
+
+  # gateway service act as a producer for rabbitmq
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./gateway/Dockerfile
+    container_name: Gateway
+    environment:
+      - MONGO_URI=mongodb://mongo-db:27017
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=admin
+      - RABBITMQ_PASSWORD=securepassword
+      - RABBITMQ_PORT=5672
+      - UPLOAD_FOLDER=videos-db
+      - DOWNLOAD_FOLDER=mp3-db
+      - LOG_LEVEL=INFO
+      - WORKERS=4
+    ports:
+      - "8086:8086"
+    depends_on:
+      - mongo-db
+      - rabbitmq
+    volumes:
+      - .:/app
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: on-failure
+
+  # converter service act as a consumer for rabbitmq
+  converter:
+    build:
+      context: .
+      dockerfile: ./converter/Dockerfile
+    container_name: converter-service
+    environment:
+      - MONGO_URI=mongodb://mongo-db:27017
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=admin
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_PASSWORD=securepassword
+      - UPLOAD_FOLDER=videos-db
+      - DOWNLOAD_FOLDER=mp3-db
+      - LOG_LEVEL=INFO
+      - WORKERS=4
+    depends_on:
+      - mongo-db
+      - rabbitmq
+    volumes:
+      - .:/app
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: on-failure
+
+  # notification service act as a consumer for rabbitmq
+  notification-service:
+    build:
+      context: .
+      dockerfile: ./notification/Dockerfile
+    container_name: notification
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=admin
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_PASSWORD=securepassword
+      - LOG_LEVEL=INFO
+    depends_on:
+      - rabbitmq
+    volumes:
+      - .:/app
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: on-failure
+
+  mongo-db:
+    image: mongo:6
+    container_name: mongo-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+    restart: always
+
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin      # Set a custom username
+      - RABBITMQ_DEFAULT_PASS=securepassword # Set a strong password
+      - RABBITMQ_ERLANG_COOKIE=secretcookie  # Use a secret Erlang cookie for clustering
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq  # Persist RabbitMQ data
+      - rabbitmq_logs:/var/log/rabbitmq  # Persist RabbitMQ logs
+    ports:
+      - "5672:5672"  # AMQP port for clients  
+      - "15672:15672" # Management UI   "http://localhost:15672/"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:15672/api/health/checks/alarms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rabbitmq_network
+    restart: always  # Automatically restart the container on failure or reboot
+  
+  postgres-db:
+    image: postgres:15
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: auth_db
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]  # This checks if PostgreSQL is ready to accept connections using the specified user.
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  rabbitmq_data:   # Volume for RabbitMQ data
+  rabbitmq_logs:   # Volume for RabbitMQ logs
+  postgres-data:   # Volume for PostgreSQL data
+  mongo-data:      # Volume for MongoDB data
+

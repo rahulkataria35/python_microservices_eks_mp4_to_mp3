@@ -24,6 +24,7 @@ DOWNLOAD_FOLDER = "mp3-db"
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_USER = os.getenv("RABBITMQ_USER", "admin")
 RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "securepassword")
+RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", 5672)
 RABBITMQ_RETRY_COUNT = 5
 RABBITMQ_RETRY_DELAY = 5  # seconds
 
@@ -43,7 +44,7 @@ def connect_rabbitmq():
         try:
             logger.info(f"Attempting to connect to RabbitMQ (Attempt {attempt}/{RABBITMQ_RETRY_COUNT})")
             credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
-            connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST, credentials=credentials))
+            connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST,port=RABBITMQ_PORT, credentials=credentials))
             channel = connection.channel()
             channel.queue_declare(queue='video', durable=True)
             channel.queue_declare(queue='mp3', durable=True)
@@ -134,5 +135,4 @@ def download():
         return "You are not allowed to download", 401
 
 if __name__ == "__main__":
-    logger.info("Starting the Flask application")
-    app.run(host="0.0.0.0", port=8086, debug=True)
+    app.run(host="0.0.0.0", port=8086)

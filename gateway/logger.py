@@ -25,6 +25,9 @@ def get_logger(name: str) -> logging.Logger:
         logger.setLevel(logging.WARNING)
     logger.setLevel(logging.INFO)  # Set the default logging level
 
+    if not os.path.exists('logs/'):
+        os.makedirs('logs/')
+        
     # Log formatter
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

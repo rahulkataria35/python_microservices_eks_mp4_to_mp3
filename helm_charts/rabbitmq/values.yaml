@@ -1,0 +1,19 @@
+image:
+  repository: rabbitmq
+  tag: management
+  pullPolicy: IfNotPresent
+
+rabbitmq:
+  username: admin
+  password: securepassword
+  erlangCookie: secretcookie
+
+persistence:
+  enabled: true
+  dataVolumeSize: 1Gi
+  logVolumeSize: 1Gi
+
+service:
+  ports:
+    amqp: 5672
+    management: 15672

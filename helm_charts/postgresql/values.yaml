@@ -1,0 +1,48 @@
+# PostgreSQL image details
+image:
+  repository: postgres
+  tag: 15.2-alpine
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# PostgreSQL authentication
+auth:
+  username: admin
+  password: "secure-password"
+  database: my_database
+
+# Enable persistence to store data
+persistence:
+  enabled: true
+  storageClass: "standard"
+  size: 10Gi
+
+# Resources for the PostgreSQL container
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Node selector, tolerations, and affinity for advanced scheduling
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Liveness and readiness probes
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5

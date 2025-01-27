@@ -29,7 +29,10 @@ def get_logger(name: str) -> logging.Logger:
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-
+    
+    if not os.path.exists('logs/'):
+        os.makedirs('logs/')
+    
     # Rotating file handler
     file_handler = RotatingFileHandler(
         'logs/app.log', maxBytes=5 * 1024 * 1024, backupCount=5  # 5MB per file, 5 backups

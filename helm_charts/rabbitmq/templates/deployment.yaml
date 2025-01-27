@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: "{{ .Values.rabbitmq.username }}"
+        - name: RABBITMQ_DEFAULT_PASS
+          value: "{{ .Values.rabbitmq.password }}"
+        - name: RABBITMQ_ERLANG_COOKIE
+          value: "{{ .Values.rabbitmq.erlangCookie }}"
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/rabbitmq
+        - name: logs
+          mountPath: /var/log/rabbitmq
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: rabbitmq-data
+      - name: logs
+        persistentVolumeClaim:
+          claimName: rabbitmq-logs

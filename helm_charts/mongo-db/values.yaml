@@ -1,0 +1,64 @@
+# MongoDB image details
+image:
+  repository: mongo
+  tag: 6.0.5
+  pullPolicy: IfNotPresent
+
+replicaCount: 3
+
+# MongoDB authentication
+auth:
+  enabled: true
+  rootUsername: admin
+  rootPassword: "secure-password"
+  username: app_user
+  password: "app_password"
+  database: my_database
+
+# Enable persistence to store data
+persistence:
+  enabled: true
+  storageClass: "standard"
+  size: 20Gi
+
+# Resources for the MongoDB container
+resources:
+  limits:
+    cpu: 1
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+# Node selector, tolerations, and affinity for advanced scheduling
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Liveness and readiness probes
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+# Network policies to restrict access
+networkPolicy:
+  enabled: true
+  allowFrom:
+    - 192.168.0.0/16
+    - 10.0.0.0/8
+
+# Security context
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
