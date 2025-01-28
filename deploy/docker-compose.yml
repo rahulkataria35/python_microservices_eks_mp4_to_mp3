@@ -1,10 +1,10 @@
-version: '3.8'
+version: '3.3'
 
 services:
   authentication:
     build:
-      context: .
-      dockerfile: ./auth/Dockerfile
+      context: ../auth
+      dockerfile: Dockerfile
     container_name: auth
     environment:
       - POSTGRES_HOST=postgres-db
@@ -23,12 +23,13 @@ services:
       - postgres-db
     volumes:
       - .:/app
+    network_mode: host
 
   # gateway service act as a producer for rabbitmq
   api-gateway:
     build:
-      context: .
-      dockerfile: ./gateway/Dockerfile
+      context: ../gateway
+      dockerfile: Dockerfile
     container_name: Gateway
     environment:
       - MONGO_URI=mongodb://mongo-db:27017
@@ -53,12 +54,13 @@ services:
         max-size: "50m"
         max-file: "3"
     restart: on-failure
+    network_mode: host
 
   # converter service act as a consumer for rabbitmq
   converter:
     build:
-      context: .
-      dockerfile: ./converter/Dockerfile
+      context: ../converter
+      dockerfile: Dockerfile
     container_name: converter-service
     environment:
       - MONGO_URI=mongodb://mongo-db:27017
@@ -81,12 +83,13 @@ services:
         max-size: "50m"
         max-file: "3"
     restart: on-failure
+    network_mode: host
 
   # notification service act as a consumer for rabbitmq
   notification-service:
     build:
-      context: .
-      dockerfile: ./notification/Dockerfile
+      context: ../notification
+      dockerfile: Dockerfile
     container_name: notification
     environment:
       - RABBITMQ_HOST=rabbitmq
@@ -104,6 +107,7 @@ services:
         max-size: "50m"
         max-file: "3"
     restart: on-failure
+    network_mode: host
 
   mongo-db:
     image: mongo:6
@@ -124,6 +128,7 @@ services:
         max-size: "100m"
         max-file: "3"
     restart: always
+    network_mode: host
 
   rabbitmq:
     image: rabbitmq:management
@@ -143,8 +148,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - rabbitmq_network
+    network_mode: host
     restart: always  # Automatically restart the container on failure or reboot
   
   postgres-db:
@@ -163,6 +167,7 @@ services:
       retries: 5
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    network_mode: host
 
 volumes:
   rabbitmq_data:   # Volume for RabbitMQ data

@@ -1,20 +1,18 @@
 FROM python:3.10-slim
 
-# Install necessary system dependencies and clean up
+# Set the working directory
+WORKDIR /app
+
+# Install system dependencies and Python build tools
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc libmariadb-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip
-RUN pip install --no-cache-dir --upgrade pip
-
-# Set the working directory
-WORKDIR /app
-
-# Copy requirements and install Python dependencies
+# Copy and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
 COPY . .

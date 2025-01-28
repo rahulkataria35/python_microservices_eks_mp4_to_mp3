@@ -1,16 +1,24 @@
-FROM python:3.10-slim-bullseye
+# Use the official Python 3.10 Alpine image
+FROM python:3.10-slim
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends --no-install-suggests \
-  build-essential \
-  && pip install --no-cache-dir --upgrade pip
-
+# Set the working directory to /app
 WORKDIR /app
-COPY ./requirements.txt /app
-RUN pip install --no-cache-dir --requirement /app/requirements.txt
-COPY . /app
 
-EXPOSE 8080
+# Install system dependencies and Python build tools
+RUN apt-get update && \
+    apt-get install -y libmariadb-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-CMD ["python3", "main.py"]
+# Copy and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+# Copy the application code
+COPY . .
 
+# Expose port 8080
+EXPOSE 8086
+
+# Set the default command to run the application
+CMD ["python", "main.py"]
