@@ -1,13 +1,11 @@
 # Use the official Python 3.10 Alpine image
 FROM python:3.10-slim
 
-# Set the working directory to /app
-WORKDIR /app
-
 # Install system dependencies and Python build tools
 RUN apt-get update && \
     apt-get install -y libmariadb-dev && \
     apt-get clean && \
+    apt-get install -y libpq-dev gcc && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies

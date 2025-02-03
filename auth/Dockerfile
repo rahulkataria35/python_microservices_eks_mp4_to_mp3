@@ -1,11 +1,9 @@
 FROM python:3.10-slim
 
-# Set the working directory
-WORKDIR /app
-
 # Install system dependencies and Python build tools
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc libmariadb-dev && \
+    apt-get install -y libpq-dev gcc && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

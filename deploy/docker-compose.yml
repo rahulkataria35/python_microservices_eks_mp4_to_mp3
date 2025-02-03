@@ -11,7 +11,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=auth_db
-      - POSTGRES_PORT=5432
+      - POSTGRES_PORT=5433
     ports:
       - "5000:5000"
     logging:
@@ -23,7 +23,7 @@ services:
       - postgres-db
     volumes:
       - .:/app
-    network_mode: host
+    # network_mode: host
 
   # gateway service act as a producer for rabbitmq
   api-gateway:
@@ -32,7 +32,7 @@ services:
       dockerfile: Dockerfile
     container_name: Gateway
     environment:
-      - MONGO_URI=mongodb://mongo-db:27017
+      - MONGO_URI=mongodb://mongo-db:27018
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_USER=admin
       - RABBITMQ_PASSWORD=securepassword
@@ -41,6 +41,7 @@ services:
       - DOWNLOAD_FOLDER=mp3-db
       - LOG_LEVEL=INFO
       - WORKERS=4
+      - AUTH_SVC_ADDRESS=authentication:5000 # address of auth service
     ports:
       - "8086:8086"
     depends_on:
@@ -54,7 +55,7 @@ services:
         max-size: "50m"
         max-file: "3"
     restart: on-failure
-    network_mode: host
+    # network_mode: host
 
   # converter service act as a consumer for rabbitmq
   converter:
@@ -63,7 +64,7 @@ services:
       dockerfile: Dockerfile
     container_name: converter-service
     environment:
-      - MONGO_URI=mongodb://mongo-db:27017
+      - MONGO_URI=mongodb://mongo-db:27018
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_USER=admin
       - RABBITMQ_PORT=5672
@@ -83,7 +84,7 @@ services:
         max-size: "50m"
         max-file: "3"
     restart: on-failure
-    network_mode: host
+    # network_mode: host
 
   # notification service act as a consumer for rabbitmq
   notification-service:
@@ -107,13 +108,13 @@ services:
         max-size: "50m"
         max-file: "3"
     restart: on-failure
-    network_mode: host
+    # network_mode: host
 
   mongo-db:
     image: mongo:6
     container_name: mongo-db
     ports:
-      - "27017:27017"
+      - "27018:27018"
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -128,7 +129,7 @@ services:
         max-size: "100m"
         max-file: "3"
     restart: always
-    network_mode: host
+    # network_mode: host
 
   rabbitmq:
     image: rabbitmq:management
@@ -148,7 +149,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    network_mode: host
+    # network_mode: host
     restart: always  # Automatically restart the container on failure or reboot
   
   postgres-db:
@@ -158,16 +159,18 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: auth_db
+      PGPORT: 5433  # Change the PostgreSQL internal port
     ports:
-      - "5432:5432"
+      - "5433:5433"  # Map host 5433 → container 5433
+    command: ["postgres", "-c", "port=5433"]  # Ensure PostgreSQL starts on port 5433
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]  # This checks if PostgreSQL is ready to accept connections using the specified user.
+      test: ["CMD-SHELL", "pg_isready -U postgres -p 5433"]
       interval: 10s
       timeout: 5s
       retries: 5
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    network_mode: host
+
 
 volumes:
   rabbitmq_data:   # Volume for RabbitMQ data
