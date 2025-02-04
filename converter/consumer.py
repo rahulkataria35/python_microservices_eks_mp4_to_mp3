@@ -6,9 +6,21 @@ from pymongo import MongoClient
 import gridfs
 from convert import to_mp3
 from dotenv import load_dotenv
+from logger import get_logger
+
+logger = get_logger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
+
+# RabbitMQ settings
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+RABBITMQ_USER = os.getenv("RABBITMQ_USER", "admin")
+RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "securepassword")
+RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", 5672)
+RABBITMQ_RETRY_COUNT = 5
+RABBITMQ_RETRY_DELAY = 5  # seconds
+
 
 def initialize_mongo_client(uri, db_name):
     """
@@ -19,14 +31,26 @@ def initialize_mongo_client(uri, db_name):
     fs = gridfs.GridFS(db)
     return db, fs
 
-def initialize_rabbitmq_connection(host, user, password, port):
-    """
-    Establishes a connection to RabbitMQ and returns the channel.
-    """
-    credentials = pika.PlainCredentials(user, password)
-    connection = pika.BlockingConnection(pika.ConnectionParameters(host=host, port=port, credentials=credentials))
-    channel = connection.channel()
-    return channel
+
+# RabbitMQ connection setup with retries
+def connect_rabbitmq():
+    for attempt in range(1, RABBITMQ_RETRY_COUNT + 1):
+        try:
+            logger.info(f"Attempting to connect to RabbitMQ (Attempt {attempt}/{RABBITMQ_RETRY_COUNT})")
+            credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
+            connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST,port=RABBITMQ_PORT, credentials=credentials))
+            channel = connection.channel()
+            channel.queue_declare(queue='video', durable=True)
+            channel.queue_declare(queue='mp3', durable=True)
+            logger.info("RabbitMQ connection established successfully")
+            return connection, channel
+        except Exception as e:
+            logger.error(f"Failed to connect to RabbitMQ: {e}")
+            if attempt < RABBITMQ_RETRY_COUNT:
+                time.sleep(RABBITMQ_RETRY_DELAY)
+            else:
+                raise Exception("Max retries reached. Could not connect to RabbitMQ.")
+
 
 def main():
     # MongoDB settings
@@ -38,14 +62,8 @@ def main():
     db_videos, fs_videos = initialize_mongo_client(mongo_uri, upload_folder)
     db_mp3s, fs_mp3s = initialize_mongo_client(mongo_uri, download_folder)
 
-    # RabbitMQ settings
-    rabbitmq_host = os.getenv("RABBITMQ_HOST", "localhost")
-    rabbitmq_user = os.getenv("RABBITMQ_USER", "admin")
-    rabbitmq_password = os.getenv("RABBITMQ_PASSWORD", "securepassword")
-    rabbitmq_port = os.getenv("RABBITMQ_PORT", 5672)
-
     # Initialize RabbitMQ connection
-    channel = initialize_rabbitmq_connection(rabbitmq_host, rabbitmq_user, rabbitmq_password, rabbitmq_port)
+    connection, channel = connect_rabbitmq()    
 
     def callback(ch, method, properties, body):
         """

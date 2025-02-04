@@ -10,8 +10,10 @@ def token(request):
     if not token:
         return None, ("Missing Credentials", 401)
     
+    url = f"{os.environ.get('AUTH_SVC_ADDRESS','127.0.0.1:5000')}/validate"
+    
     response = requests.post(
-        f"http://{os.environ.get('AUTH_SVC_ADDRESS','127.0.0.1:5000')}/validate",
+        url,
         headers={"Authorization": token}
     )
 

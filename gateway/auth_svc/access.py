@@ -24,7 +24,7 @@ def login(request):
     if not auth_service_address:
         return None, ("Authentication service address not configured", 500)
 
-    url = f"http://{auth_service_address}/login"
+    url = f"{auth_service_address}/login"
     
     try:
         # Send a POST request to the authentication service with the JSON payload

@@ -1,4 +1,5 @@
 import os
+import time
 import psycopg2
 from psycopg2 import sql, OperationalError
 from logger import get_logger
@@ -6,35 +7,41 @@ from logger import get_logger
 # Get logger instance
 logger = get_logger(__name__)
 
+MAX_RETRIES = 5  # Maximum number of retries
+INITIAL_DELAY = 2  # Initial delay in seconds
+
 def get_db_connection():
-    """
-    Establish and return a PostgreSQL database connection.
-    Reads database configurations from environment variables.
-    """
-    try:
-        connection = psycopg2.connect(
-            host=os.environ.get("POSTGRES_HOST", "localhost"),
-            user=os.environ.get("POSTGRES_USER", "postgres"),
-            password=os.environ.get("POSTGRES_PASSWORD", "password"),
-            dbname=os.environ.get("POSTGRES_DB", "auth_db"),
-            port=int(os.environ.get("POSTGRES_PORT", 5432))
-        )
-        logger.info("Database connection established.")
-        return connection
-    except OperationalError as e:
-        logger.exception("Failed to connect to the database.")
-        raise
+    retries = 0
+    delay = INITIAL_DELAY
+
+    while retries < MAX_RETRIES:
+        try:
+            connection = psycopg2.connect(
+                host=os.environ.get("POSTGRES_HOST", "localhost"),
+                user=os.environ.get("POSTGRES_USER", "postgres"),
+                password=os.environ.get("POSTGRES_PASSWORD", "password"),
+                dbname=os.environ.get("POSTGRES_DB", "auth_db"),
+                port=int(os.environ.get("POSTGRES_PORT", 5432))
+            )
+            logger.info("Database connection established.")
+            return connection
+        except OperationalError as e:
+            logger.error(f"Database connection failed (attempt {retries + 1}): {e}")
+            retries += 1
+            if retries < MAX_RETRIES:
+                logger.info(f"Retrying in {delay} seconds...")
+                time.sleep(delay)
+                delay *= 2  # Exponential backoff
+            else:
+                logger.exception("Max retries reached. Could not connect to the database.")
+                raise
 
 def check_database_connection():
-    """
-    Check if the database connection is active.
-    Executes a simple query to validate the connection.
-    """
     try:
         connection = get_db_connection()
         cursor = connection.cursor()
         cursor.execute("SELECT 1")
-        result = cursor.fetchone()  # Fetch the result to clear the buffer
+        cursor.fetchone()
         cursor.close()
         connection.close()
         logger.info("Database connection verified successfully.")
