@@ -1,15 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-mongodb
+  name: mongodb
   labels:
-    app: mongodb
-    release: {{ .Release.Name }}
+    app: database
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - port: 27017
-      targetPort: mongodb
+      nodePort: 30005
   selector:
-    app: mongodb
-    release: {{ .Release.Name }}
+    app: database

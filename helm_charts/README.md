@@ -10,23 +10,27 @@
 1. Create a Namespace (optional):
 
 ```
-kubectl create namespace mongodb
+kubectl create namespace tool-stack
 ```
 
 2. Install the Chart: Navigate to the directory containing the Chart.yaml file and run:
 ```
-helm install mongodb-release . -n mongodb
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+helm dependency build
+
+helm install mongodb-release . -n tool-stack
 ```
 
 Replace mongodb-release with the desired release name.
 
 3. Check the Resources: Verify that all the resources have been created successfully:
 ```
-kubectl get all -n mongodb
+kubectl get all -n tool-stack
 ```
 4. Expose the MongoDB Service Locally: Since there's no ingress, you can use port-forwarding to access MongoDB locally:
 ```
-kubectl port-forward svc/mongodb-release-mongodb 27017:27017 -n mongodb
+kubectl port-forward svc/mongodb-release-mongodb 27017:27017 -n tool-stack
 ```
 This will forward the MongoDB service to your local machine on port 27017.
 MongoDB will be accessible locally at localhost:27017.
