@@ -46,3 +46,13 @@ readinessProbe:
   initialDelaySeconds: 5
   periodSeconds: 10
   timeoutSeconds: 5
+
+
+env:
+  POSTGRES_USER: user
+  POSTGRES_PASSWORD: password
+  POSTGRES_DB: mydatabase
+
+service:
+  type: ClusterIP
+  port: 5432

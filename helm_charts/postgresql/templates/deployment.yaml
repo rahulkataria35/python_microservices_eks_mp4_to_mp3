@@ -2,43 +2,27 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}-postgresql
-  labels:
-    app: postgresql
-    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
 spec:
-  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: postgresql
-      release: {{ .Release.Name }}
+      app: {{ .Release.Name }}-postgresql
   template:
     metadata:
       labels:
-        app: postgresql
-        release: {{ .Release.Name }}
+        app: {{ .Release.Name }}-postgresql
     spec:
       containers:
         - name: postgresql
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: postgres:15
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-postgresql-secrets
           ports:
-            - name: postgres
-              containerPort: 5432
-          env:
-            - name: POSTGRES_USER
-              value: {{ .Values.auth.username }}
-            - name: POSTGRES_PASSWORD
-              value: {{ .Values.auth.password }}
-            - name: POSTGRES_DB
-              value: {{ .Values.auth.database }}
+            - containerPort: 5432
           volumeMounts:
-            - name: data
-              mountPath: /var/lib/postgresql/data
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            - mountPath: /var/lib/postgresql/data
+              name: postgresql-storage
       volumes:
-        - name: data
+        - name: postgresql-storage
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-data
+            claimName: {{ .Release.Name }}-postgresql-pvc

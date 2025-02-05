@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: auth
-          image: rahulkataria3/auth:latest
+          image: rahulkataria1/authentication-app:04022025
           ports:
             - containerPort: 5000
           envFrom:
