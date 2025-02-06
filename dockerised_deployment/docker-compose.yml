@@ -3,7 +3,7 @@ version: '3.3'
 services:
   authentication:
     build:
-      context: ../auth
+      context: ../src/auth
       dockerfile: Dockerfile
     container_name: auth
     environment:
@@ -28,7 +28,7 @@ services:
   # gateway service act as a producer for rabbitmq
   api-gateway:
     build:
-      context: ../gateway
+      context: ../src/gateway
       dockerfile: Dockerfile
     container_name: Gateway
     environment:
@@ -60,7 +60,7 @@ services:
   # converter service act as a consumer for rabbitmq
   converter:
     build:
-      context: ../converter
+      context: ../src/converter
       dockerfile: Dockerfile
     container_name: converter-service
     environment:
@@ -89,7 +89,7 @@ services:
   # notification service act as a consumer for rabbitmq
   notification-service:
     build:
-      context: ../notification
+      context: ../src/notification
       dockerfile: Dockerfile
     container_name: notification
     environment:

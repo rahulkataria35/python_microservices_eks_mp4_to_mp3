@@ -7,6 +7,7 @@ from flask import Flask, request, send_file, jsonify
 from flask_pymongo import PyMongo  # For integrating MongoDB with Flask
 from bson.objectid import ObjectId  # For working with MongoDB ObjectIDs
 from auth_validate import validate
+from auth_create.create_user import create
 from auth_svc import access
 from storage import util
 from logger import get_logger
@@ -67,6 +68,16 @@ def readiness():
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
+
+@app.route("/create", methods=["POST"])
+def create():
+    logger.info("Processing user create request")
+    response, error = create(request)
+    if error:
+        return jsonify({"error": error}), 400
+    logger.info("User created successfully")
+    return jsonify({"message": "User created successfully"}), 201
+    
 
 @app.route("/login", methods=["POST"])
 def login():
