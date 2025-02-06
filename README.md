@@ -77,7 +77,7 @@ docker-compose up --build
 4. Test the APIs with different inputs and edge cases.
 
 
-### High Level Flow of Application Deployment Using Helm Charts (Kubernetes Deployment)
+# High Level Flow of Application Deployment Using Helm Charts (Kubernetes Deployment)
 
 1. Ensure your Kubernetes cluster is configured.
 
@@ -106,7 +106,7 @@ kubectl get all
 6. Destroying the Infrastructure
 
 
-### Low Level Steps
+# Low Level Steps
 
 **Cluster Creation**
 1. Log in to AWS Console:
@@ -196,7 +196,7 @@ helm install rabbitmq .
 ```
 
 
-### Apply the manifest file for each microservice:
+## Apply the manifest file for each microservice:
 
 - Auth Service:
     ```
@@ -219,12 +219,12 @@ helm install rabbitmq .
     kubectl apply -f .
     ```
 
-### Application Validation
+# Application Validation
 After deploying the microservices, verify the status of all components by running:
 ```
 kubectl get all
 ```
-### Notification Configuration
+## Notification Configuration
 - For configuring email notifications and two-factor authentication (2FA), follow these steps:
 
 - Go to your Gmail account and click on your profile.
@@ -245,7 +245,7 @@ kubectl get all
 
 Run the application through the following API calls:
 
-### API Definition
+## API Definition
 
 - user create endpoint 
     ```
@@ -264,11 +264,10 @@ Run the application through the following API calls:
     GET http://nodeIP:30002/download
     ```
 
-### Destroying the Infrastructure
+# Destroying the Infrastructure
 To clean up the infrastructure, follow these steps:
-    - Delete the Node Group: Delete the node group associated with your EKS cluster.
-
-    - Delete the EKS Cluster: Once the nodes are deleted, you can proceed to delete the EKS cluster itself.
+- Delete the Node Group: Delete the node group associated with your EKS cluster.
+- Delete the EKS Cluster: Once the nodes are deleted, you can proceed to delete the EKS cluster itself.
 
 
 
