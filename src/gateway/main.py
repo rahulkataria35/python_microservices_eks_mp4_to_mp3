@@ -4,8 +4,8 @@ import time
 import gridfs  # For handling large files in MongoDB
 import pika  # For RabbitMQ communication
 from flask import Flask, request, send_file, jsonify
-from flask_pymongo import PyMongo  # For integrating MongoDB with Flask
-from bson.objectid import ObjectId  # For working with MongoDB ObjectIDs
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 from auth_validate import validate
 from auth_create.create_user import create
 from auth_svc import access
@@ -29,15 +29,17 @@ RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", 5672)
 RABBITMQ_RETRY_COUNT = 5
 RABBITMQ_RETRY_DELAY = 5  # seconds
 
-# Initialize MongoDB connections
-logger.info("Initializing MongoDB connections")
-mongo_videos = PyMongo(app, uri=f"{MONGO_URI}/{UPLOAD_FOLDER}")
-mongo_mp3s = PyMongo(app, uri=f"{MONGO_URI}/{DOWNLOAD_FOLDER}")
+# Initialize MongoDB client
+logger.info("Initializing MongoDB client")
+client = MongoClient(MONGO_URI)
+
+db_videos = client[UPLOAD_FOLDER]
+db_mp3s = client[DOWNLOAD_FOLDER]
 
 # Initialize GridFS instances
 logger.info("Setting up GridFS for videos and mp3s")
-fs_videos = gridfs.GridFS(mongo_videos.db)
-fs_mp3s = gridfs.GridFS(mongo_mp3s.db)
+fs_videos = gridfs.GridFS(db_videos)
+fs_mp3s = gridfs.GridFS(db_mp3s)
 
 # RabbitMQ connection setup with retries
 def connect_rabbitmq():
@@ -45,7 +47,9 @@ def connect_rabbitmq():
         try:
             logger.info(f"Attempting to connect to RabbitMQ (Attempt {attempt}/{RABBITMQ_RETRY_COUNT})")
             credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
-            connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST,port=RABBITMQ_PORT, credentials=credentials))
+            connection = pika.BlockingConnection(
+                pika.ConnectionParameters(host=RABBITMQ_HOST, port=RABBITMQ_PORT, credentials=credentials)
+            )
             channel = connection.channel()
             channel.queue_declare(queue='video', durable=True)
             channel.queue_declare(queue='mp3', durable=True)

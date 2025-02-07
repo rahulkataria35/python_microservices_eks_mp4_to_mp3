@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: auth
-          image: rahulkataria1/authentication-app:04022025
+          image: rahulkataria1/authentication-app:07022025
           ports:
             - containerPort: 5000
           envFrom:
@@ -45,5 +45,7 @@ spec:
             httpGet:
               path: /readiness
               port: 5000
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3

@@ -5,7 +5,7 @@ metadata:
   labels:
     app: converter
 spec:
-  replicas: 4
+  replicas: 2
   selector:
     matchLabels:
       app: converter
@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: converter
-          image: sweasytech/converter
+          image: rahulkataria1/converter-app:04022025
           envFrom:
             - configMapRef:
                 name: converter-configmap

@@ -3,5 +3,12 @@ kind: ConfigMap
 metadata:
   name: converter-configmap
 data:
-  MP3_QUEUE: "mp3"
-  VIDEO_QUEUE: "video"
+  MONGO_URI: "mongodb://shaf:shaf1234@mongodb-service:27017/?authSource=admin"
+  RABBITMQ_HOST: rabbitmq-Service
+  RABBITMQ_USER: admin
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_PASSWORD: securepassword
+  UPLOAD_FOLDER: videos-db
+  DOWNLOAD_FOLDER: mp3-db
+  LOG_LEVEL: INFO
+  WORKERS: "4"

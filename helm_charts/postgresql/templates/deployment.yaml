@@ -1,28 +1,35 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-postgresql
+  name: postgres-deploy
+  labels:
+    name: postgres-deploy
+    app: auth-app
 spec:
+  replicas: 1
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-postgresql
+      name: postgres-pod
+      app: auth-app
   template:
     metadata:
+      name: postgres-pod
       labels:
-        app: {{ .Release.Name }}-postgresql
+        name: postgres-pod
+        app: auth-app
     spec:
       containers:
-        - name: postgresql
-          image: postgres:15
-          envFrom:
-            - secretRef:
-                name: {{ .Release.Name }}-postgresql-secrets
-          ports:
-            - containerPort: 5432
-          volumeMounts:
-            - mountPath: /var/lib/postgresql/data
-              name: postgresql-storage
-      volumes:
-        - name: postgresql-storage
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-postgresql-pvc
+      - name: postgres
+        image: {{ .Values.container.image }}
+        ports:
+        - containerPort: 5432
+        env:
+          - name: POSTGRES_USER
+            value: {{ .Values.container.env.user }}
+          - name: POSTGRES_PASSWORD
+            value: {{ .Values.container.env.password }}
+          - name: POSTGRES_DB
+            value: {{ .Values.container.env.db }}
+          - name: POSTGRES_HOST_AUTH_METHOD
+            value: trust
+         

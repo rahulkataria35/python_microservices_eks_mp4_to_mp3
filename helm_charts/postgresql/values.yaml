@@ -1,16 +1,10 @@
-# PostgreSQL image details
-image:
-  repository: postgres
-  tag: 15.2-alpine
-  pullPolicy: IfNotPresent
+container:
+  image: postgres:15.2-alpine
+  env:
+    user: admin
+    password: "secure-password"
+    db: auth-db
 
-replicaCount: 1
-
-# PostgreSQL authentication
-auth:
-  username: admin
-  password: "secure-password"
-  database: my_database
 
 # Enable persistence to store data
 persistence:
@@ -54,5 +48,8 @@ env:
   POSTGRES_DB: mydatabase
 
 service:
-  type: ClusterIP
+  type: NodePort
   port: 5432
+  nodeport: 30003
+
+

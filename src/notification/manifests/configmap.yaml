@@ -3,5 +3,8 @@ kind: ConfigMap
 metadata:
   name: notification-configmap
 data:
-  MP3_QUEUE: "mp3"
-  VIDEO_QUEUE: "video"
+  RABBITMQ_HOST: rabbitmq-service
+  RABBITMQ_USER: admin
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_PASSWORD: securepassword
+  LOG_LEVEL: INFO

@@ -3,6 +3,7 @@ import time
 import psycopg2
 from psycopg2 import sql, OperationalError
 from logger import get_logger
+from contextlib import closing
 
 # Get logger instance
 logger = get_logger(__name__)
@@ -39,16 +40,21 @@ def get_db_connection():
 def check_database_connection():
     try:
         connection = get_db_connection()
-        cursor = connection.cursor()
-        cursor.execute("SELECT 1")
-        cursor.fetchone()
-        cursor.close()
+        if connection is None:
+            logger.error("Failed to obtain database connection.")
+            return False
+        
+        with closing(connection.cursor()) as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        
         connection.close()
         logger.info("Database connection verified successfully.")
         return True
-    except OperationalError as e:
-        logger.error(f"Database connection failed: {e}")
+    except (OperationalError, InterfaceError) as e:
+        logger.error(f"Database connection failed: {e}", exc_info=True)
         return False
+    
 
 def create_db_and_tables():
     """

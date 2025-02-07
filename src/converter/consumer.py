@@ -2,7 +2,7 @@ import pika
 import sys
 import os
 import time
-from pymongo import MongoClient
+from pymongo import MongoClient, errors
 import gridfs
 from convert import to_mp3
 from dotenv import load_dotenv
@@ -25,20 +25,38 @@ RABBITMQ_RETRY_DELAY = 5  # seconds
 def initialize_mongo_client(uri, db_name):
     """
     Initializes a MongoDB client and GridFS for a given database.
+    Validates the MongoDB URI format before attempting to connect.
     """
-    client = MongoClient(uri)
-    db = client[db_name]
-    fs = gridfs.GridFS(db)
-    return db, fs
+    try:
+        # Validate the MongoDB URI
+        client = MongoClient(uri)
+        client.admin.command("ping")  # Ensure MongoDB is reachable
+        logger.info(f"Connected to MongoDB successfully with URI: {uri}")
+        db = client[db_name]
+        fs = gridfs.GridFS(db)
+        return db, fs
+    except errors.InvalidURI:
+        logger.error(f"Invalid MongoDB URI: {uri}")
+        raise ValueError("Invalid MongoDB URI. Please check the 'MONGO_URI' environment variable.")
+    except errors.ConnectionFailure as e:
+        logger.error(f"Failed to connect to MongoDB: {e}")
+        raise ConnectionError("Failed to connect to MongoDB. Ensure the server is running and URI is correct.")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while connecting to MongoDB: {e}")
+        raise
 
 
-# RabbitMQ connection setup with retries
 def connect_rabbitmq():
+    """
+    Connects to RabbitMQ with retries on failure.
+    """
     for attempt in range(1, RABBITMQ_RETRY_COUNT + 1):
         try:
             logger.info(f"Attempting to connect to RabbitMQ (Attempt {attempt}/{RABBITMQ_RETRY_COUNT})")
             credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
-            connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST,port=RABBITMQ_PORT, credentials=credentials))
+            connection = pika.BlockingConnection(pika.ConnectionParameters(
+                host=RABBITMQ_HOST, port=RABBITMQ_PORT, credentials=credentials
+            ))
             channel = connection.channel()
             channel.queue_declare(queue='video', durable=True)
             channel.queue_declare(queue='mp3', durable=True)
@@ -81,6 +99,7 @@ def main():
 
     print(f"Waiting for messages on queue '{video_queue}'. To exit press CTRL+C")
     channel.start_consuming()
+
 
 if __name__ == "__main__":
     try:

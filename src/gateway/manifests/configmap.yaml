@@ -3,4 +3,13 @@ kind: ConfigMap
 metadata:
   name: gateway-configmap
 data:
-  AUTH_SVC_ADDRESS: "auth:5000"
+  MONGO_URI: "mongodb://shaf:shaf1234@mongodb-service:27017/?authSource=admin"
+  RABBITMQ_HOST: rabbitmq-Service
+  RABBITMQ_USER: admin
+  RABBITMQ_PASSWORD: securepassword
+  RABBITMQ_PORT: "5672"
+  UPLOAD_FOLDER: videos-db
+  DOWNLOAD_FOLDER: mp3-db
+  LOG_LEVEL: INFO
+  WORKERS: "4"
+  AUTH_SVC_ADDRESS: http://auth:5000

@@ -5,7 +5,7 @@ metadata:
   labels:
     app: notification
 spec:
-  replicas: 4
+  replicas: 2
   selector:
     matchLabels:
       app: notification
@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: notification
-          image: sweasytech/notification
+          image: rahulkataria1/notification-app:04022025
           envFrom:
             - configMapRef:
                 name: notification-configmap

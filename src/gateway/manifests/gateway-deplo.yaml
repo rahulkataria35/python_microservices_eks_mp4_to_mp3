@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: <Docker-image>
+          image: rahulkataria1/gateway-app:07022025
           envFrom:
             - configMapRef:
                 name: gateway-configmap
